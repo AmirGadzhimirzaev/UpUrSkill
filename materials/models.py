@@ -1,5 +1,6 @@
 from django.db import models
 
+
 class Lesson(models.Model):
     name = models.CharField(
         max_length=50,
@@ -28,6 +29,14 @@ class Lesson(models.Model):
         null=True,
         help_text='ссылка на видео'
     )
+    owner = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        verbose_name="Владелец",
+        help_text="Владелец урока"
+    )
 
     def __str__(self):
         return self.name
@@ -51,10 +60,18 @@ class Course(models.Model):
         blank=True,
         null=True
     )
+    owner = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        verbose_name="Владелец",
+        help_text="Владелец урока"
+    )
 
     def __str__(self):
         return self.name
-
+    
     class Meta:
         verbose_name = 'курс'
         verbose_name_plural = 'курсы'
