@@ -114,3 +114,34 @@ class Payments(models.Model):
         null=True,
         verbose_name='способ оплаты: наличные или перевод на счет'
     )
+
+    def __str__(self):
+        return self.user
+
+    class Meta:
+        verbose_name = 'оплата'
+        verbose_name_plural = 'оплаты'
+
+
+class Subscription(models.Model):
+    sub_user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        verbose_name='Подписка пользователя',
+    )
+    sub_course = models.ForeignKey(
+        Course,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        verbose_name='Курс по подписке'
+    )
+
+    def __str__(self):
+        return f'{self.sub_user}'
+
+    class Meta:
+        verbose_name = 'подписка'
+        verbose_name_plural = 'подписки'
