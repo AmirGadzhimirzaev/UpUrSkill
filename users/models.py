@@ -71,25 +71,58 @@ class Payments(models.Model):
         CASH = 'наличные'
         CARD = 'перевод на карту'
 
+    session_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        verbose_name='id сессии',
+        help_text='укажите id'
+    )
+    link = models.URLField(
+        max_length=500,
+        blank=True,
+        null=True,
+        verbose_name='ссылка на платеж',
+        help_text='укажите ссылку на оплату'
+    )
     user = models.ForeignKey(
         User,
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,
         blank=True,
         null=True,
         verbose_name='Пользователь',
         related_name='payer'
     )
-    payment_date = models.DateTimeField(
+    product_id = models.CharField(
+        max_length=200,
         blank=True,
         null=True,
-        verbose_name='дата оплаты'
+        verbose_name='id продукта'
     )
-    paid_course = models.ForeignKey(
+    price_id = models.CharField(
+        max_length=200,
+        blank=True,
+        null=True,
+        verbose_name='id цены'
+    )
+    currency = models.CharField(
+        max_length=200,
+        blank=True,
+        null=True,
+        verbose_name='валюта'
+    )
+    date = models.DateTimeField(
+        auto_now_add=True,
+        blank=True,
+        null=True,
+        verbose_name='дата создания продукта'
+    )
+    course = models.ForeignKey(
         Course,
         on_delete=models.SET_NULL,
         blank=True,
         null=True,
-        verbose_name='оплаченный курс',
+        verbose_name='курс на оплату',
         related_name='paid_course'
     )
     paid_lesson = models.ForeignKey(
@@ -97,12 +130,10 @@ class Payments(models.Model):
         on_delete=models.SET_NULL,
         blank=True,
         null=True,
-        verbose_name='оплаченный урок',
+        verbose_name='урок на оплату',
         related_name='paid_lesson'
     )
-    payment_amount = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
+    payment_amount = models.PositiveIntegerField(
         blank=True,
         null=True,
         verbose_name='сумма оплаты'
@@ -112,15 +143,21 @@ class Payments(models.Model):
         choices=PaymentMethod.choices,
         blank=True,
         null=True,
-        verbose_name='способ оплаты: наличные или перевод на счет'
+        verbose_name='способ платежа: наличные или перевод на счет'
+    )
+    payment_status = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name='статус оплаты'
     )
 
     def __str__(self):
-        return self.user
+        return f'{self.course.name} - {self.payment_amount} {self.currency}'
 
     class Meta:
-        verbose_name = 'оплата'
-        verbose_name_plural = 'оплаты'
+        verbose_name = 'платеж'
+        verbose_name_plural = 'платежи'
 
 
 class Subscription(models.Model):
