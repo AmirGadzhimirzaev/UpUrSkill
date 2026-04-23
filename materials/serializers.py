@@ -29,7 +29,6 @@ class CourseSerializer(serializers.ModelSerializer):
     total_lessons_amount = SerializerMethodField()
     lessons_detail = LessonDetailSerializer(source='course', many=True, read_only=True)
 
-
     def get_total_lessons_amount(self, course):
         return Lesson.objects.filter(course=course.id).count()
 
@@ -38,15 +37,28 @@ class CourseSerializer(serializers.ModelSerializer):
         fields = ('id', 'name', 'total_lessons_amount', 'lessons_detail')
 
 
+class CourseInfoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Course
+        fields = ('id', 'name')
+
+
 class PaymentsSerializer(serializers.ModelSerializer):
+    course_name = serializers.CharField(write_only=True)
+    amount = serializers.IntegerField(required=True, source='payment_amount')
+    course = CourseInfoSerializer(read_only=True)
 
     class Meta:
         model = Payments
         fields = '__all__'
 
+    def create(self, validated_data):
+        course_name = validated_data.pop('course_name')
+        course, _ = Course.objects.get_or_create(name=course_name)
+        return Payments.objects.create(course=course, **validated_data)
+
 
 class SubscriptionSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Subscription
         fields = '__all__'

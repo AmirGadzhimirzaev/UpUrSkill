@@ -2,7 +2,7 @@ from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics, viewsets
 from rest_framework.filters import OrderingFilter
-from rest_framework.permissions import IsAdminUser, AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -12,12 +12,13 @@ from materials.serializers import CourseSerializer, LessonSerializer, LessonDeta
     SubscriptionSerializer
 from users.models import Payments, Subscription
 from users.permissons import IsModer, IsOwner
+from users.services import stripe_product_create, stripe_create_prise, stripe_create_session
 
 
 class LessonCreateAPIView(generics.CreateAPIView):
     serializer_class = LessonSerializer
     queryset = Lesson.objects.all()
-    permission_classes = [~IsModer | IsAdminUser | IsAuthenticated,]
+    permission_classes = [~IsModer | IsAdminUser | IsAuthenticated, ]
 
     def perform_create(self, serializer):
         lesson = serializer.save()
@@ -28,13 +29,13 @@ class LessonCreateAPIView(generics.CreateAPIView):
 class LessonListAPIView(generics.ListAPIView):
     serializer_class = LessonSerializer
     queryset = Lesson.objects.all()
-    permission_classes = [IsModer | IsAdminUser | IsAuthenticated,]
+    permission_classes = [IsModer | IsAdminUser | IsAuthenticated, ]
     pagination_class = CustomPagination
 
 
 class LessonRetrieveAPIView(generics.RetrieveAPIView):
     queryset = Lesson.objects.all()
-    permission_classes = [IsModer | IsOwner | IsAdminUser | IsAuthenticated,]
+    permission_classes = [IsModer | IsOwner | IsAdminUser | IsAuthenticated, ]
 
     def get_serializer_class(self):
         if self.request.method == 'GET':
@@ -45,13 +46,13 @@ class LessonRetrieveAPIView(generics.RetrieveAPIView):
 class LessonUpdateAPIView(generics.UpdateAPIView):
     serializer_class = LessonSerializer
     queryset = Lesson.objects.all()
-    permission_classes = [IsModer | IsOwner | IsAdminUser,]
+    permission_classes = [IsModer | IsOwner | IsAdminUser, ]
 
 
 class LessonDestroyAPIView(generics.DestroyAPIView):
     serializer_class = LessonSerializer
     queryset = Lesson.objects.all()
-    permission_classes = [~IsModer | IsOwner | IsAdminUser,]
+    permission_classes = [~IsModer | IsOwner | IsAdminUser, ]
 
 
 class CoursesViewSet(viewsets.ModelViewSet):
@@ -61,7 +62,7 @@ class CoursesViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action == 'create':
-            self.permission_classes = (~IsModer | IsAuthenticated, )
+            self.permission_classes = (~IsModer | IsAuthenticated,)
         elif self.action in ['update', 'retrieve']:
             self.permission_classes = (IsModer | IsOwner | IsAuthenticated,)
         elif self.action == "destroy":
@@ -78,8 +79,32 @@ class PaymentListAPIView(generics.ListAPIView):
     serializer_class = PaymentsSerializer
     queryset = Payments.objects.all()
     filter_backends = [DjangoFilterBackend, OrderingFilter]
-    filterset_fields = ('paid_course', 'paid_lesson', 'payment_method')
+    filterset_fields = ('course', 'paid_lesson', 'payment_method')
     ordering_fields = ('payment_date',)
+    print(queryset[0].course.name)
+
+
+class PaymentCreateAPIView(generics.CreateAPIView):
+    serializer_class = PaymentsSerializer
+    queryset = Payments.objects.all()
+
+    def perform_create(self, serializer):
+        payment = serializer.save(user=self.request.user)
+        payment.product_id = stripe_product_create(payment.course.name).id
+        payment.price_id = stripe_create_prise(payment.product_id, payment.payment_amount).id
+        payment.session_id, payment.link, payment.payment_status, payment.currency = stripe_create_session(
+            payment.price_id)
+        serializer.save()
+
+
+class PaymentUpdateAPIView(generics.UpdateAPIView):
+    serializer_class = PaymentsSerializer
+    queryset = Payments.objects.all()
+
+
+class PaymentDeleteAPIView(generics.DestroyAPIView):
+    serializer_class = PaymentsSerializer
+    queryset = Payments.objects.all()
 
 
 class SubscriptionAPIView(APIView):
