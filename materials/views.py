@@ -1,6 +1,6 @@
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import generics, viewsets
+from rest_framework import generics, viewsets, status
 from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
@@ -10,7 +10,8 @@ from materials.models import Course, Lesson
 from materials.paginations import CustomPagination
 from materials.serializers import CourseSerializer, LessonSerializer, LessonDetailSerializer, PaymentsSerializer, \
     SubscriptionSerializer
-from users.models import Payments, Subscription
+from materials.tasks import course_update_info_email, check_last_login
+from users.models import Payments, Subscription, User
 from users.permissons import IsModer, IsOwner
 from users.services import stripe_product_create, stripe_create_prise, stripe_create_session
 
@@ -74,6 +75,23 @@ class CoursesViewSet(viewsets.ModelViewSet):
         course.owner = self.request.user
         course.save()
 
+    def perform_update(self, serializer):
+        inst = serializer.instance
+        current_data = self.request.data
+        current_keys_status = []
+        if current_data:
+            for key, value in current_data.items():
+                current_keys_status.append(value != getattr(inst, key))
+
+            if any(current_keys_status):
+                course_update_info_email.delay(inst.pk)
+
+        serializer.save()
+
+    def list(self, request, *args, **kwargs):
+        print(check_last_login())
+        return Response({"request": 123}, status=status.HTTP_200_OK)
+
 
 class PaymentListAPIView(generics.ListAPIView):
     serializer_class = PaymentsSerializer
@@ -81,7 +99,6 @@ class PaymentListAPIView(generics.ListAPIView):
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ('course', 'paid_lesson', 'payment_method')
     ordering_fields = ('payment_date',)
-    print(queryset[0].course.name)
 
 
 class PaymentCreateAPIView(generics.CreateAPIView):

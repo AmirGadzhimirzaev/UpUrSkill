@@ -13,6 +13,7 @@ import os.path
 from datetime import timedelta
 from pathlib import Path
 
+from celery.bin.worker import CELERY_BEAT
 from dotenv import load_dotenv
 
 load_dotenv(override=True)
@@ -45,7 +46,8 @@ INSTALLED_APPS = [
     'materials',
     'django_filters',
     'rest_framework_simplejwt',
-    'drf_yasg'
+    'drf_yasg',
+    'django_celery_beat'
 ]
 
 MIDDLEWARE = [
@@ -119,9 +121,10 @@ REST_FRAMEWORK = {
     ]
 }
 
-SIMPlE_JWT = {
+SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1)
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'UPDATE_LAST_LOGIN': True
 }
 
 # Internationalization
@@ -148,4 +151,26 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 AUTH_USER_MODEL = 'users.User'
 
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND')
+EMAIL_HOST = os.getenv('EMAIL_HOST')
+EMAIL_PORT = os.getenv('EMAIL_PORT')
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL')
+
 STRIPE_API_KEY = os.getenv('STRIPE_API_KEY')
+
+CELERY_BROKER_URL = 'redis://127.0.0.1:6379/0'
+CELERY_RESULT_BACKEND = 'redis://127.0.0.1:6379/0'
+CELERY_TIMEZONE = "UTC"
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60
+
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+
+CELERY_BEAT_SCHEDULE = {
+    'check_last_login': {
+        'task': 'materials.tasks.check_last_login',
+        'schedule': timedelta(days=1),
+    },
+}
